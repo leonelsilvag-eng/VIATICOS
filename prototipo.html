@@ -1,0 +1,710 @@
+<title>Control de Viáticos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Schibsted+Grotesk:wght@600;700&display=swap">
+<style>
+/* Layout: expediente de trabajo. Bandeja a la izquierda, expediente del viático a la derecha; en teléfono se alternan. */
+:root{
+  --bg:#F2F5F3; --surface:#FFFFFF; --surface-2:#F6F8F7; --ink:#14221E; --muted:#5A6B65;
+  --line:#D8E0DC; --line-strong:#B6C3BD; --neutral-soft:#E6ECE9;
+  --accent:#0E6B5B; --accent-ink:#FFFFFF; --accent-soft:#DDF0EA;
+  --ok:#1A7A47; --ok-soft:#DCF1E5; --warn:#935500; --warn-soft:#FBEBCE;
+  --crit:#B3261E; --crit-soft:#FBE0DD; --info:#2557A7; --info-soft:#E0EAF9;
+  --font-head:'Schibsted Grotesk','IBM Plex Sans',system-ui,sans-serif;
+  --font-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1412; --surface:#141D1A; --surface-2:#19241F; --ink:#E5EEEA; --muted:#93A59E;
+    --line:#26352F; --line-strong:#3A4D45; --neutral-soft:#1F2D28;
+    --accent:#4FC3AA; --accent-ink:#06201A; --accent-soft:#133A32;
+    --ok:#52C98C; --ok-soft:#153626; --warn:#E5A53C; --warn-soft:#3A2B0F;
+    --crit:#F2807A; --crit-soft:#3F1C1A; --info:#86AEF3; --info-soft:#192944;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1412; --surface:#141D1A; --surface-2:#19241F; --ink:#E5EEEA; --muted:#93A59E;
+  --line:#26352F; --line-strong:#3A4D45; --neutral-soft:#1F2D28;
+  --accent:#4FC3AA; --accent-ink:#06201A; --accent-soft:#133A32;
+  --ok:#52C98C; --ok-soft:#153626; --warn:#E5A53C; --warn-soft:#3A2B0F;
+  --crit:#F2807A; --crit-soft:#3F1C1A; --info:#86AEF3; --info-soft:#192944;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:14px;line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:12px 48px}
+h1,h2,h3{font-family:var(--font-head);margin:0;text-wrap:balance}
+p{margin:0}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.muted{color:var(--muted)}
+.mono,.folio{font-family:var(--font-mono);font-size:12.5px}
+.folio{font-weight:500;letter-spacing:.02em}
+
+/* Top bar */
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding-block:6px 10px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-head);font-size:18px}
+.brand svg{flex:none;color:var(--accent)}
+.tag{font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border:1px solid var(--line-strong);padding:1px 6px;border-radius:3px}
+.seg{display:flex;border:1px solid var(--line-strong);border-radius:6px;overflow:hidden;background:var(--surface);max-width:100%}
+.seg button{border:0;background:transparent;padding:8px 14px;cursor:pointer;font-weight:500;min-width:0;white-space:nowrap}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.seg button:not(.on):hover{background:var(--surface-2)}
+@media (max-width:560px){.seg{width:100%}.seg button{flex:1;padding:9px 4px;font-size:13px}}
+.note{font-size:12.5px;color:var(--muted);padding-bottom:10px}
+.link{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:9px 12px;cursor:pointer;font-weight:500;color:var(--muted);white-space:nowrap}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+.count{display:inline-block;min-width:20px;text-align:center;font-size:11.5px;padding:0 6px;margin-left:6px;border-radius:999px;background:var(--crit-soft);color:var(--crit);font-weight:600}
+
+/* Master-detail */
+.cols{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+@media (min-width:900px){.cols{grid-template-columns:minmax(300px,380px) minmax(0,1fr)}.back{display:none!important}}
+@media (max-width:899px){.cols.has-sel .listcol{display:none}.cols:not(.has-sel) .detail{display:none}}
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.fchip{border:1px solid var(--line-strong);background:var(--surface);border-radius:999px;padding:4px 11px;cursor:pointer;font-size:13px}
+.fchip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.fchip b{font-weight:600;margin-left:5px;font-family:var(--font-mono);font-size:12px}
+.list{border:1px solid var(--line);border-radius:6px;background:var(--surface);overflow:hidden}
+.item{display:block;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--line);padding:11px 14px;cursor:pointer;min-width:0}
+.item:last-child{border-bottom:0}
+.item:hover{background:var(--surface-2)}
+.item.on{background:var(--accent-soft)}
+.i1,.i2,.i3{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;min-width:0}
+.i2{margin-block:3px;align-items:baseline}
+.i2 strong{overflow-wrap:anywhere}
+.i3{font-size:12.5px;color:var(--muted)}
+.amt,.num{font-variant-numeric:tabular-nums;font-family:var(--font-mono);font-size:13px;white-space:nowrap}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+
+/* Badges and chips */
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:2px 9px 2px 8px;border-radius:999px;background:var(--neutral-soft);color:var(--ink);white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.chip{display:inline-block;font-size:12px;padding:1px 8px;border-radius:4px;background:var(--neutral-soft);color:var(--ink);margin:1px 4px 1px 0}
+.t-ok,.c-ok{background:var(--ok-soft);color:var(--ok)}
+.t-warn,.c-warn{background:var(--warn-soft);color:var(--warn)}
+.t-crit,.c-crit{background:var(--crit-soft);color:var(--crit)}
+.t-info,.c-info{background:var(--info-soft);color:var(--info)}
+
+/* Dossier */
+.dossier{background:var(--surface);border:1px solid var(--line);border-radius:6px;min-width:0}
+.dossier>section,.dossier>div{padding:16px 18px;border-top:1px solid var(--line)}
+.dossier>.dhead{border-top:0}
+.dtop{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:6px}
+.tipo{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.dhead h2{font-size:22px;line-height:1.2;overflow-wrap:anywhere}
+.sub{color:var(--muted);margin-top:2px}
+.back{background:none;border:0;padding:0 0 10px;cursor:pointer;color:var(--accent);font-weight:500}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:6px}
+.st{border-top:4px solid var(--line);padding-top:5px;font-size:12px;color:var(--muted);min-width:0}
+.st.done{border-color:var(--accent);color:var(--ink)}
+.st.cur{border-color:var(--accent);color:var(--ink);font-weight:600}
+.st.cur::after{content:" ●";color:var(--accent)}
+.st.stop{border-color:var(--crit);color:var(--crit);font-weight:600}
+.banner{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:5px;font-size:13px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px 20px;margin:0}
+.facts dt,.lbl{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:2px}
+.facts dd{margin:0;overflow-wrap:anywhere}
+.facts .wide{grid-column:1/-1}
+.dossier h3,.panel h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px;font-family:var(--font-body);font-weight:600}
+.next{font-weight:500}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px 18px}
+.dossier>section.act{background:var(--accent-soft)}
+.hint{font-size:13px;color:var(--muted)}
+.sumline{display:flex;flex-wrap:wrap;gap:8px 28px;margin-bottom:12px}
+.sumline div{min-width:0}
+.sumline b{display:block;font-family:var(--font-mono);font-weight:500;font-size:15px;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:5px}
+table{border-collapse:collapse;width:100%;min-width:680px;font-size:13px}
+th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px;background:var(--surface-2);border-bottom:1px solid var(--line);font-weight:600}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right}
+.rowbtns{display:flex;gap:6px;flex-wrap:wrap}
+.timeline{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.timeline li{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px;font-size:13px}
+.timeline time{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.timeline .who{color:var(--muted)}
+@media (max-width:520px){.timeline li{grid-template-columns:1fr;gap:0}}
+
+/* Forms and buttons */
+label{display:flex;flex-direction:column;gap:4px;font-weight:500;font-size:13px;min-width:0}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line-strong);border-radius:4px;padding:8px 10px;min-width:0;width:100%}
+textarea{resize:vertical}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-block:12px}
+.fgrid .full{grid-column:1/-1}
+.opt{font-weight:400;color:var(--muted)}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.btn{min-height:38px;padding:7px 14px;border:1px solid var(--line-strong);background:var(--surface);border-radius:5px;cursor:pointer;font-weight:500}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--crit);border-color:var(--crit)}
+.btn.sm{min-height:30px;padding:2px 10px;font-size:12.5px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.err{color:var(--crit);font-size:13px;min-height:0;margin-top:8px}
+.err:empty{display:none}
+.quote{border-left:3px solid var(--warn);padding:4px 12px;background:var(--warn-soft);color:var(--ink);margin-block:8px;border-radius:0 4px 4px 0}
+details.addc{margin-top:14px;border:1px dashed var(--line-strong);border-radius:5px;padding:10px 14px}
+details.addc summary{cursor:pointer;font-weight:500}
+.lectura{margin-top:10px;padding:10px 12px;background:var(--surface-2);border-radius:4px;font-size:13px}
+.sims{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-block:10px}
+fieldset{border:0;padding:0;margin:0 0 6px;display:flex;flex-wrap:wrap;gap:10px 22px}
+legend{padding:0;font-weight:500;font-size:13px;margin-bottom:6px}
+label.radio{flex-direction:row;align-items:center;gap:8px;font-weight:400}
+label.radio input{width:auto}
+label.radio small{color:var(--muted)}
+.route{padding:10px 12px;background:var(--surface-2);border-radius:4px;font-size:13px;margin-top:4px}
+.params{display:grid;gap:16px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.inhab{display:flex;flex-wrap:wrap;gap:6px;margin-block:8px}
+.inhab .chip button{background:none;border:0;cursor:pointer;margin-left:4px;color:var(--muted);padding:0 2px}
+.arow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--surface)}
+.arow:last-child{border-bottom:0}
+.arow.crit{box-shadow:inset 4px 0 0 var(--crit)}
+.arow.warn{box-shadow:inset 4px 0 0 var(--warn)}
+.arow.info{box-shadow:inset 4px 0 0 var(--info)}
+.arow p{overflow-wrap:anywhere}
+@media (max-width:560px){.arow{grid-template-columns:1fr}}
+#toast{position:fixed;left:50%;transform:translate(-50%,20px);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:6px;max-width:min(92vw,520px);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:10;font-size:13px}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+
+<div class="wrap" id="app"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ---------- utilidades ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2, '0');
+const iso = dt => dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate());
+const dd = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const sod = dt => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+const shift = (s, n) => { const x = dd(s); x.setDate(x.getDate() + n); return iso(x); };
+const sum = (a, f) => a.reduce((t, x) => t + f(x), 0);
+const nf = new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN', maximumFractionDigits:0});
+const nf2 = new Intl.NumberFormat('es-MX', {style:'currency', currency:'MXN'});
+const money = n => Number.isInteger(n) ? nf.format(n) : nf2.format(n);
+const fmtD = new Intl.DateTimeFormat('es-MX', {weekday:'short', day:'numeric', month:'short'});
+const fmtT = new Intl.DateTimeFormat('es-MX', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', hour12:false});
+const fd = s => fmtD.format(dd(s)).replace(/[.,]/g, '');
+const ft = s => fmtT.format(new Date(s)).replace(/[.,]/g, '');
+const wide = () => matchMedia('(min-width:900px)').matches;
+const pad4 = n => String(n).padStart(4, '0');
+
+/* ---------- parámetros y calendario hábil ---------- */
+const defaultParams = () => ({
+  umbral: 50000, plazoDias: 2, topeNac: 750, topeExt: 1500, efectivoMax: 2000,
+  inhabiles: ['2026-11-16', '2026-12-25', '2027-01-01']
+});
+let S = {params: defaultParams()};
+const isBiz = dt => dt.getDay() !== 0 && dt.getDay() !== 6 && !S.params.inhabiles.includes(iso(dt));
+function addBD(dt, n) {
+  const r = new Date(dt), step = n < 0 ? -1 : 1; let c = Math.abs(n);
+  while (c > 0) { r.setDate(r.getDate() + step); if (isBiz(r)) c--; }
+  return r;
+}
+function bdDiff(from, to) {
+  if (iso(from) === iso(to)) return 0;
+  const sign = to > from ? 1 : -1, a = sign > 0 ? from : to, b = sign > 0 ? to : from;
+  let c = 0; const x = new Date(a);
+  while (iso(x) < iso(b)) { x.setDate(x.getDate() + 1); if (isBiz(x)) c++; }
+  return sign * c;
+}
+function plazo(r) {
+  const dl = addBD(dd(r.regreso), S.params.plazoDias), today = sod(new Date());
+  if (today < dd(r.regreso)) return {k:'futuro', dl, txt:'Inicia al regreso (' + fd(r.regreso) + ')'};
+  const n = bdDiff(today, dl);
+  if (n < 0) return {k:'vencida', n:-n, dl, txt:'Vencida hace ' + (-n) + (n === -1 ? ' día hábil' : ' días hábiles')};
+  if (n === 0) return {k:'hoy', dl, txt:'Vence hoy'};
+  if (n === 1) return {k:'manana', dl, txt:'Vence mañana'};
+  return {k:'ok', n, dl, txt:'Faltan ' + n + ' días hábiles'};
+}
+const plazoTone = k => ({vencida:'crit', hoy:'warn', manana:'warn'}[k] || 'n');
+
+/* ---------- personas, roles, estados ---------- */
+const P = {
+  ana:{n:'Ana Torres', a:'Ventas'}, marco:{n:'Marco Peña', a:'Ventas'}, sofia:{n:'Sofía Ibarra', a:'Ventas'},
+  luis:{n:'Luis Mendoza', a:'Jefe directo de Ventas'}, carla:{n:'Carla Ruiz', a:'Finanzas'}, admin:{n:'Administrador', a:'Sistemas'}
+};
+const ROLES = {empleado:{l:'Empleado', u:'ana'}, jefe:{l:'Jefe directo', u:'luis'}, finanzas:{l:'Finanzas', u:'carla'}, admin:{l:'Admin', u:'admin'}};
+const EST = {
+  pend_jefe:['Por autorizar · Jefe', 'info'], pend_fin:['Por autorizar · Finanzas', 'info'],
+  aprobada:['Por entregar anticipo', 'warn'], por_comprobar:['Por comprobar', 'warn'],
+  en_revision:['En revisión', 'info'], por_reintegrar:['Reintegro pendiente', 'warn'],
+  por_pagar:['Por pagar', 'info'], cerrada:['Cerrada', 'ok'], pagada:['Pagada', 'ok'],
+  devuelta:['Devuelta', 'warn'], rechazada:['Rechazada', 'crit']
+};
+const OWNER = {pend_jefe:'jefe', pend_fin:'finanzas', aprobada:'finanzas', en_revision:'finanzas', por_reintegrar:'finanzas', por_pagar:'finanzas', por_comprobar:'empleado', devuelta:'empleado'};
+const FILTERS = {
+  empleado:[
+    {k:'todas', l:'Todas', f:r => r.emp === 'ana'},
+    {k:'comprobar', l:'Por comprobar', f:r => r.emp === 'ana' && r.estado === 'por_comprobar'},
+    {k:'tramite', l:'En trámite', f:r => r.emp === 'ana' && !['por_comprobar', 'cerrada', 'pagada', 'rechazada'].includes(r.estado)},
+    {k:'cerradas', l:'Cerradas', f:r => r.emp === 'ana' && ['cerrada', 'pagada', 'rechazada'].includes(r.estado)}],
+  jefe:[
+    {k:'autorizar', l:'Por autorizar', f:r => r.estado === 'pend_jefe'},
+    {k:'comprobar', l:'Por comprobar', f:r => r.estado === 'por_comprobar'},
+    {k:'todas', l:'Todas', f:() => true}],
+  finanzas:[
+    {k:'autorizar', l:'Por autorizar', f:r => r.estado === 'pend_fin'},
+    {k:'entregar', l:'Por entregar', f:r => r.estado === 'aprobada'},
+    {k:'revisar', l:'Por revisar', f:r => r.estado === 'en_revision'},
+    {k:'cobros', l:'Pagos y reintegros', f:r => ['por_pagar', 'por_reintegrar'].includes(r.estado)},
+    {k:'reembolsos', l:'Reembolsos', f:r => r.tipo === 'reembolso'},
+    {k:'todas', l:'Todas', f:() => true}],
+  admin:[{k:'todas', l:'Todas', f:() => true}]
+};
+const TABS = {
+  empleado:[{k:'bandeja', l:'Mis solicitudes'}, {k:'nueva', l:'Nueva solicitud'}, {k:'alertas', l:'Alertas'}],
+  jefe:[{k:'bandeja', l:'Solicitudes'}, {k:'alertas', l:'Alertas'}],
+  finanzas:[{k:'bandeja', l:'Solicitudes'}, {k:'alertas', l:'Alertas'}],
+  admin:[{k:'bandeja', l:'Todas las solicitudes'}, {k:'alertas', l:'Alertas'}, {k:'params', l:'Parámetros'}]
+};
+
+/* ---------- datos de ejemplo ---------- */
+function fakeUuid(s) {
+  let h = 2166136261; const out = [];
+  for (let i = 0; i < 32; i++) { h ^= s.charCodeAt(i % s.length) + i; h = Math.imul(h, 16777619) >>> 0; out.push(((h >>> ((i * 3) % 20)) & 15).toString(16)); }
+  const u = out.join('').toUpperCase();
+  return u.slice(0, 8) + '-' + u.slice(8, 12) + '-' + u.slice(12, 16) + '-' + u.slice(16, 20) + '-' + u.slice(20, 32);
+}
+function seed() {
+  const T = sod(new Date()), bd = n => iso(addBD(T, n)), ago = h => new Date(Date.now() - h * 36e5).toISOString();
+  const L = (who, act, note, h) => ({at:ago(h), who, act, note:note || ''});
+  let k = 0;
+  const C = (concepto, prov, fecha, monto, kind, x) => { k++; return Object.assign({id:'c' + k, concepto, prov, fecha, monto, kind, pago:'Tarjeta', estado:'pendiente', rfcOk:true, sat:'vigente', uuid:kind === 'cfdi' ? fakeUuid('s' + k) : ''}, x || {}); };
+  const r1 = bd(-2), r2 = bd(-7), r3 = bd(-4), r4 = bd(-15);
+  return [
+    {id:'VT-0398', ord:1, tipo:'anticipo', emp:'ana', destino:'Guadalajara, Jal.', motivo:'Capacitación de distribuidores', ambito:'nacional', salida:shift(r4, -2), regreso:r4,
+     desglose:{hospedaje:6500, alimentos:2500, transporte:2500, otros:500}, monto:12000, estado:'cerrada', viaFin:false, resultado:'Reintegro de $850 recibido', comprobadoEn:shift(r4, 1),
+     entrega:{metodo:'Transferencia', ref:'SPEI 771203', fecha:shift(r4, -4)},
+     comps:[C('Hospedaje', 'Hotel Palacio Tapatío', shift(r4, -2), 6900, 'cfdi', {estado:'aceptado'}), C('Transporte', 'Aeroméxico, boleto CDMX–GDL', shift(r4, -2), 3200, 'cfdi', {estado:'aceptado'}), C('Alimentos', 'Restaurante Casa Fuerte', shift(r4, -1), 1050, 'cfdi', {estado:'aceptado'})],
+     log:[L('ana', 'Solicitud creada', '', 400), L('luis', 'Aprobada por jefe directo', '', 398), L('carla', 'Anticipo entregado', 'Transferencia SPEI 771203', 390), L('ana', 'Comprobación enviada a revisión', '3 comprobantes, en plazo.', 300), L('carla', 'Revisión concluida', 'Aceptado $11,150. Reintegro de $850.', 290), L('carla', 'Reintegro recibido', '', 280)]},
+    {id:'VT-0405', ord:2, tipo:'anticipo', emp:'marco', destino:'Querétaro, Qro.', motivo:'Instalación de equipo en planta del cliente', ambito:'nacional', salida:shift(r3, -2), regreso:r3,
+     desglose:{hospedaje:4500, alimentos:1500, transporte:2500, otros:500}, monto:9000, estado:'en_revision', viaFin:false, comprobadoEn:bd(-3),
+     entrega:{metodo:'Transferencia', ref:'SPEI 880391', fecha:shift(r3, -3)},
+     comps:[C('Transporte', 'Autobuses ETN', shift(r3, -2), 1840, 'cfdi'), C('Hospedaje', 'Hotel Real de Minas', shift(r3, -2), 4350, 'cfdi', {rfcOk:false}), C('Alimentos', 'Taquería El Tío', shift(r3, -1), 640, 'ticket'), C('Alimentos', 'Café Gourmet Centro', shift(r3, -1), 2430, 'cfdi', {pago:'Efectivo'})],
+     log:[L('marco', 'Solicitud creada', '', 200), L('luis', 'Aprobada por jefe directo', '', 196), L('carla', 'Anticipo entregado', 'Transferencia SPEI 880391', 180), L('marco', 'Comprobación enviada a revisión', '4 comprobantes, en plazo.', 50)]},
+    {id:'VT-0409', ord:3, tipo:'anticipo', emp:'marco', destino:'Mérida, Yuc.', motivo:'Auditoría de sucursal', ambito:'nacional', salida:shift(r2, -4), regreso:r2,
+     desglose:{hospedaje:10000, alimentos:4000, transporte:7000, otros:1000}, monto:22000, estado:'por_comprobar', viaFin:false,
+     entrega:{metodo:'Transferencia', ref:'SPEI 880350', fecha:shift(r2, -6)},
+     comps:[C('Hospedaje', 'Hotel Hacienda Mérida', shift(r2, -1), 7800, 'pdf')],
+     log:[L('marco', 'Solicitud creada', '', 320), L('luis', 'Aprobada por jefe directo', '', 316), L('carla', 'Anticipo entregado', 'Transferencia SPEI 880350', 300), L('carla', 'Recordatorio enviado', 'Plazo de comprobación vencido.', 30)]},
+    {id:'VT-0412', ord:4, tipo:'anticipo', emp:'ana', destino:'Monterrey, N.L.', motivo:'Visita a cliente y cierre de contrato anual', ambito:'nacional', salida:shift(r1, -2), regreso:r1,
+     desglose:{hospedaje:9200, alimentos:3300, transporte:5000, otros:1000}, monto:18500, estado:'por_comprobar', viaFin:false,
+     entrega:{metodo:'Transferencia', ref:'SPEI 880412', fecha:shift(r1, -4)},
+     comps:[C('Hospedaje', 'Hotel Gamma Monterrey', shift(r1, -2), 8420, 'cfdi'), C('Transporte', 'Aeroméxico, boleto MTY–CDMX', shift(r1, -2), 4980, 'cfdi'), C('Alimentos', 'Restaurante La Nacional', shift(r1, -1), 1260, 'ticket')],
+     log:[L('ana', 'Solicitud creada', '', 150), L('luis', 'Aprobada por jefe directo', '', 148), L('carla', 'Anticipo entregado', 'Transferencia SPEI 880412', 140)]},
+    {id:'VT-0415', ord:5, tipo:'anticipo', emp:'ana', destino:'Guadalajara, Jal.', motivo:'Feria comercial del sector', ambito:'nacional', salida:bd(8), regreso:bd(10),
+     desglose:{hospedaje:6000, alimentos:2600, transporte:3500, otros:500}, monto:12600, estado:'pend_jefe', comps:[],
+     log:[L('ana', 'Solicitud creada', 'Envía a jefe directo.', 6)]},
+    {id:'VT-0416', ord:6, tipo:'anticipo', emp:'sofia', destino:'Puebla, Pue.', motivo:'Reunión con proveedor regional', ambito:'nacional', salida:bd(2), regreso:bd(3),
+     desglose:{hospedaje:4800, alimentos:2400, transporte:6000, otros:1000}, monto:14200, estado:'aprobada', viaFin:false, comps:[],
+     log:[L('sofia', 'Solicitud creada', '', 34), L('luis', 'Aprobada por jefe directo', 'No requiere Finanzas.', 28)]},
+    {id:'VT-0418', ord:7, tipo:'anticipo', emp:'sofia', destino:'Tijuana, B.C.', motivo:'Apertura de oficina regional', ambito:'nacional', salida:bd(10), regreso:bd(14),
+     desglose:{hospedaje:26000, alimentos:11000, transporte:24000, otros:3000}, monto:64000, estado:'pend_fin', viaFin:true, comps:[],
+     log:[L('sofia', 'Solicitud creada', '', 56), L('luis', 'Aprobada por jefe directo', 'Pasa a Finanzas porque $64,000 supera $50,000.', 50)]},
+    {id:'RB-0027', ord:8, tipo:'reembolso', emp:'marco', destino:'Traslado a planta Toluca', motivo:'Casetas y comida pagadas con recursos propios', ambito:'nacional', salida:bd(-9), regreso:bd(-9),
+     desglose:{hospedaje:0, alimentos:1680, transporte:1180, otros:0}, monto:2860, estado:'por_pagar', viaFin:false,
+     comps:[C('Transporte', 'Autopista Arco Norte (casetas)', bd(-9), 1180, 'cfdi'), C('Alimentos', 'Cocina Económica Doña Lupe', bd(-9), 1680, 'cfdi')],
+     log:[L('marco', 'Solicitud creada', '', 90), L('luis', 'Aprobada por jefe directo', 'No requiere Finanzas.', 72)]},
+    {id:'RB-0030', ord:9, tipo:'reembolso', emp:'ana', destino:'Comida y taxi con cliente', motivo:'Atención a cliente en visita sorpresa', ambito:'nacional', salida:bd(-3), regreso:bd(-3),
+     desglose:{hospedaje:0, alimentos:2190, transporte:960, otros:0}, monto:3150, estado:'pend_jefe',
+     comps:[C('Alimentos', 'Restaurante Águila y Sol', bd(-3), 2190, 'cfdi'), C('Transporte', 'Taxi Sitio 21', bd(-3), 960, 'ticket')],
+     log:[L('ana', 'Solicitud creada', '', 30)]}
+  ];
+}
+let nextVT = 419, nextRB = 31, ord = 10;
+function init() { S = {params: defaultParams(), role:'empleado', view:'bandeja', filter:'todas', sel:null, addOpen:false}; S.reqs = seed(); }
+
+/* ---------- cálculos ---------- */
+const needsFin = r => r.viaFin ?? (r.monto > S.params.umbral);
+const daysOf = r => Math.round((dd(r.regreso) - dd(r.salida)) / 864e5) + 1;
+function totals(r) {
+  const cs = r.comps || [];
+  return {
+    acept:sum(cs.filter(c => c.estado === 'aceptado'), c => c.monto),
+    pend:sum(cs.filter(c => c.estado === 'pendiente'), c => c.monto),
+    rech:sum(cs.filter(c => c.estado === 'rechazado'), c => c.monto),
+    cap:sum(cs, c => c.monto), nPend:cs.filter(c => c.estado === 'pendiente').length
+  };
+}
+function dupUuid(c) { return c.uuid && S.reqs.some(r => (r.comps || []).some(o => o.id !== c.id && o.uuid === c.uuid)); }
+function flags(c) {
+  const f = [];
+  if (c.kind === 'cfdi') {
+    if (c.rfcOk === false) f.push(['crit', 'RFC receptor no coincide']);
+    if (c.sat === 'cancelado') f.push(['crit', 'CFDI cancelado ante el SAT']);
+    if (dupUuid(c)) f.push(['crit', 'UUID duplicado']);
+    if (c.pago === 'Efectivo' && c.monto > S.params.efectivoMax) f.push(['warn', 'Efectivo sobre ' + money(S.params.efectivoMax) + ': no deducible']);
+    if (!f.length) f.push(['ok', 'CFDI vigente']);
+  } else if (c.kind === 'pdf') f.push(['warn', 'Falta el XML del CFDI']);
+  else f.push(['warn', 'Sin CFDI: posible no deducible']);
+  return f;
+}
+function deducible(r) {
+  const cs = (r.comps || []).filter(c => c.estado !== 'rechazado');
+  let ded = 0, sin = 0;
+  cs.forEach(c => {
+    if (c.kind === 'cfdi') { if (!(c.rfcOk === false || c.sat === 'cancelado' || (c.pago === 'Efectivo' && c.monto > S.params.efectivoMax))) ded += c.monto; }
+    else sin += c.monto;
+  });
+  const tope = (r.ambito === 'extranjero' ? S.params.topeExt : S.params.topeNac) * daysOf(r);
+  const total = sum(cs, c => c.monto), d2 = ded + Math.min(sin, tope);
+  return {ded:d2, no:total - d2, sin, tope};
+}
+const cur = () => S.reqs.find(r => r.id === S.sel);
+function addLog(r, act, note) { r.log.push({at:new Date().toISOString(), who:ROLES[S.role].u, act, note:note || ''}); }
+function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 3600); }
+
+/* ---------- alertas ---------- */
+function alertsFor(role) {
+  const out = [], now = Date.now();
+  S.reqs.forEach(r => {
+    if (role === 'empleado' && r.emp !== 'ana') return;
+    if (r.tipo === 'anticipo' && r.estado === 'por_comprobar') {
+      const p = plazo(r);
+      if (p.k === 'vencida') out.push({sev:'crit', r, kind:'plazo', txt:'Comprobación ' + p.txt.toLowerCase() + ' (límite ' + fd(iso(p.dl)) + ')'});
+      else if (p.k === 'hoy') out.push({sev:'warn', r, kind:'plazo', txt:'La comprobación vence hoy (' + fd(iso(p.dl)) + ')'});
+      else if (p.k === 'manana') out.push({sev:'warn', r, kind:'plazo', txt:'La comprobación vence mañana (' + fd(iso(p.dl)) + ')'});
+    }
+    const own = OWNER[r.estado], h = Math.floor((now - new Date(r.log[r.log.length - 1].at)) / 36e5);
+    if (own && own !== 'empleado' && h >= 24 && (role === own || role === 'admin')) out.push({sev:'info', r, kind:'espera', txt:'Sin atender desde hace ' + (h >= 48 ? Math.floor(h / 24) + ' días' : h + ' horas') + ' (' + EST[r.estado][0].toLowerCase() + ')'});
+  });
+  return out.sort((a, b) => ({crit:0, warn:1, info:2}[a.sev] - {crit:0, warn:1, info:2}[b.sev]));
+}
+
+/* ---------- piezas de interfaz ---------- */
+const chip = (t, x) => '<span class="chip c-' + t + '">' + esc(x) + '</span>';
+function badge(r) {
+  let [l, t] = EST[r.estado];
+  if (r.tipo === 'anticipo' && r.estado === 'por_comprobar' && plazo(r).k === 'vencida') { l = 'Comprobación vencida'; t = 'crit'; }
+  return '<span class="badge t-' + t + '">' + l + '</span>';
+}
+const LOGO = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>';
+
+function head() {
+  const u = P[ROLES[S.role].u], na = alertsFor(S.role).length;
+  return '<header class="top"><div class="brand">' + LOGO + '<b>Control de Viáticos</b><span class="tag">Prototipo</span></div>' +
+    '<div class="seg" role="group" aria-label="Ver como">' + Object.entries(ROLES).map(([k, v]) => '<button class="' + (k === S.role ? 'on' : '') + '" aria-pressed="' + (k === S.role) + '" data-act="role" data-v="' + k + '">' + v.l + '</button>').join('') + '</div></header>' +
+    '<p class="note">Estás viendo la aplicación como <strong>' + esc(u.n) + '</strong> (' + esc(u.a) + '). Todo es información de ejemplo y se pierde al recargar. <button class="link" data-act="reset">Restablecer ejemplo</button></p>' +
+    '<nav class="tabs" aria-label="Secciones">' + TABS[S.role].map(t => '<button class="' + (t.k === S.view ? 'on' : '') + '" data-act="view" data-v="' + t.k + '">' + t.l + (t.k === 'alertas' && na ? '<span class="count">' + na + '</span>' : '') + '</button>').join('') + '</nav>';
+}
+
+function itemHTML(r) {
+  const pl = r.tipo === 'anticipo' && r.estado === 'por_comprobar' ? plazo(r) : null;
+  return '<button class="item' + (S.sel === r.id ? ' on' : '') + '" data-act="sel" data-id="' + r.id + '">' +
+    '<div class="i1"><span class="folio">' + r.id + '</span>' + badge(r) + '</div>' +
+    '<div class="i2"><strong>' + esc(r.destino) + '</strong><span class="amt">' + money(r.monto) + '</span></div>' +
+    '<div class="i3"><span>' + esc(P[r.emp].n) + ' · ' + (r.salida === r.regreso ? fd(r.salida) : fd(r.salida) + ' a ' + fd(r.regreso)) + '</span>' + (pl ? chip(plazoTone(pl.k), pl.txt) : '') + '</div></button>';
+}
+
+function viewBandeja() {
+  const fl = FILTERS[S.role], f = fl.find(x => x.k === S.filter) || fl[0];
+  const rows = S.reqs.filter(f.f).sort((a, b) => b.ord - a.ord);
+  if (wide() && !S.sel && rows.length) S.sel = rows[0].id;
+  const sel = cur();
+  const chips = fl.length > 1 ? '<div class="filters">' + fl.map(x => '<button class="fchip' + (x.k === f.k ? ' on' : '') + '" data-act="filter" data-v="' + x.k + '">' + x.l + '<b>' + S.reqs.filter(x.f).length + '</b></button>').join('') + '</div>' : '';
+  return '<div class="cols' + (sel ? ' has-sel' : '') + '"><aside class="listcol">' + chips +
+    '<div class="list">' + (rows.length ? rows.map(itemHTML).join('') : '<div class="empty">No hay solicitudes en esta bandeja.</div>') + '</div></aside>' +
+    '<section class="detail">' + (sel ? detailHTML(sel) : '<div class="panel empty">Elige una solicitud para ver su expediente.</div>') + '</section></div>';
+}
+
+function stepsFor(r) {
+  const fin = needsFin(r);
+  return r.tipo === 'anticipo'
+    ? ['Solicitud', 'Jefe directo'].concat(fin ? ['Finanzas'] : [], ['Entrega', 'Comprobación', 'Revisión', 'Cierre'])
+    : ['Solicitud', 'Jefe directo'].concat(fin ? ['Finanzas'] : [], ['Revisión y pago', 'Cierre']);
+}
+function stepperHTML(r) {
+  const st = stepsFor(r);
+  const at = {pend_jefe:'Jefe directo', pend_fin:'Finanzas', aprobada:'Entrega', por_comprobar:'Comprobación', en_revision:'Revisión', por_reintegrar:'Cierre', por_pagar:'Revisión y pago', devuelta:'Solicitud', rechazada:r.stopAt}[r.estado];
+  const done = ['cerrada', 'pagada'].includes(r.estado);
+  const idx = done ? st.length : Math.max(0, st.indexOf(at));
+  return '<section><div class="steps">' + st.map((s, i) => '<div class="st ' + (r.estado === 'rechazada' && i === idx ? 'stop' : i < idx ? 'done' : i === idx ? 'cur' : '') + '">' + s + '</div>').join('') + '</div></section>';
+}
+function nextStep(r) {
+  const e = P[r.emp].n;
+  return {pend_jefe:'Esperando la autorización del jefe directo (' + P.luis.n + ').', pend_fin:'Esperando la autorización de Finanzas.',
+    aprobada:'Aprobada. Finanzas debe entregar el anticipo.', por_comprobar:e + ' debe comprobar los gastos.', en_revision:'Finanzas está revisando los comprobantes.',
+    por_reintegrar:e + ' debe reintegrar ' + money(r.saldo || 0) + '. Finanzas confirmará la recepción.', por_pagar:'Finanzas debe revisar los comprobantes y registrar el pago.',
+    devuelta:'Devuelta a ' + e + ' para corregir.', rechazada:'Solicitud rechazada.', cerrada:r.resultado || 'Cerrada.', pagada:r.resultado || 'Pagada.'}[r.estado];
+}
+
+function detailHTML(r) {
+  const pl = r.tipo === 'anticipo' && r.estado === 'por_comprobar' ? plazo(r) : null, dl = r.tipo === 'anticipo' ? addBD(dd(r.regreso), S.params.plazoDias) : null;
+  const ds = r.desglose, desg = [['Hospedaje', ds.hospedaje], ['Alimentos', ds.alimentos], ['Transporte', ds.transporte], ['Otros', ds.otros]].filter(x => x[1]);
+  const ruta = 'Jefe directo' + (needsFin(r) ? ' → Finanzas (el monto supera ' + money(S.params.umbral) + ')' : ' (no requiere Finanzas, hasta ' + money(S.params.umbral) + ')');
+  let ban = '';
+  if (pl && ['vencida', 'hoy', 'manana'].includes(pl.k)) ban = '<div class="banner t-' + plazoTone(pl.k) + '"><span><strong>' + pl.txt + '.</strong> El límite fue ' + fd(iso(pl.dl)) + ' (' + (S.params.plazoDias * 24) + ' horas hábiles desde el regreso). Por ahora solo se genera la alerta.</span></div>';
+  let late = '';
+  if (r.comprobadoEn && dl) late = r.comprobadoEn <= iso(dl) ? 'Comprobado en plazo el ' + fd(r.comprobadoEn) : 'Comprobado fuera de plazo el ' + fd(r.comprobadoEn);
+  return '<article class="dossier"><div class="dhead"><button class="back" data-act="back">← Volver a la lista</button>' +
+    '<div class="dtop"><span class="folio">' + r.id + '</span><span class="tipo">' + (r.tipo === 'anticipo' ? 'Anticipo de viáticos' : 'Reembolso') + '</span>' + badge(r) + '</div>' +
+    '<h2>' + esc(r.destino) + '</h2><p class="sub">' + esc(P[r.emp].n) + ' · ' + esc(P[r.emp].a) + '</p></div>' +
+    stepperHTML(r) + (ban ? '<div>' + ban + '</div>' : '') +
+    '<section><dl class="facts">' +
+    '<div><dt>' + (r.tipo === 'anticipo' ? 'Fechas del viaje' : 'Fecha del gasto') + '</dt><dd>' + (r.salida === r.regreso ? fd(r.salida) : fd(r.salida) + ' a ' + fd(r.regreso) + ' · ' + daysOf(r) + ' días') + '</dd></div>' +
+    '<div><dt>' + (r.tipo === 'anticipo' ? 'Anticipo solicitado' : 'Reembolso solicitado') + '</dt><dd class="num">' + money(r.monto) + '</dd></div>' +
+    '<div><dt>Ruta de autorización</dt><dd>' + ruta + '</dd></div>' +
+    (dl ? '<div><dt>Límite para comprobar</dt><dd>' + fd(iso(dl)) + ' · ' + (S.params.plazoDias * 24) + ' h hábiles' + (late ? '<br><span class="muted">' + late + '</span>' : '') + '</dd></div>' : '') +
+    (r.entrega ? '<div><dt>Entrega del anticipo</dt><dd>' + esc(r.entrega.metodo) + ' · ' + esc(r.entrega.ref) + '</dd></div>' : '') +
+    (r.origen ? '<div><dt>Origen</dt><dd>Excedente del anticipo ' + esc(r.origen) + '</dd></div>' : '') +
+    '<div class="wide"><dt>Motivo</dt><dd>' + esc(r.motivo) + '</dd></div>' +
+    (desg.length ? '<div class="wide"><dt>Desglose solicitado</dt><dd>' + desg.map(x => x[0] + ' <span class="num">' + money(x[1]) + '</span>').join(' · ') + '</dd></div>' : '') +
+    '<div class="wide"><dt>Siguiente paso</dt><dd class="next">' + esc(nextStep(r)) + '</dd></div></dl></section>' +
+    actionsHTML(r) + compsHTML(r) + logHTML(r) + '</article>';
+}
+
+function actionsHTML(r) {
+  const role = S.role, e = r.estado;
+  if (role === 'jefe' && e === 'pend_jefe') return approvePanel('Decisión del jefe directo', 'Si el monto supera ' + money(S.params.umbral) + ', pasa a Finanzas.');
+  if (role === 'finanzas' && e === 'pend_fin') return approvePanel('Decisión de Finanzas', 'Autorización adicional por monto mayor a ' + money(S.params.umbral) + '.');
+  if (role === 'finanzas' && e === 'aprobada') return '<section class="act"><h3>Entrega del anticipo</h3><p class="hint">El plazo de ' + (S.params.plazoDias * 24) + ' horas hábiles para comprobar corre desde la fecha de regreso.</p><div class="fgrid"><label for="metodo">Método<select id="metodo"><option>Transferencia</option><option>Cheque</option><option>Efectivo</option></select></label><label for="ref">Referencia o folio<input id="ref" placeholder="Ej. SPEI 880500"></label></div><div class="err" id="actErr" role="alert"></div><div class="btns"><button class="btn primary" data-act="entregar">Registrar entrega del anticipo</button></div></section>';
+  if (role === 'finanzas' && e === 'en_revision') {
+    const t = totals(r), saldo = r.monto - t.acept;
+    const res = t.nPend ? 'Faltan ' + t.nPend + ' comprobantes por revisar.' : saldo > 0 ? 'Saldo a favor de la empresa: ' + money(saldo) + '. Se pedirá reintegro.' : saldo < 0 ? 'Excedente de ' + money(-saldo) + '. Se generará un reembolso que pasa a autorización.' : 'Comprobado en su totalidad.';
+    return '<section class="act"><h3>Cierre de la revisión</h3><p>Anticipo ' + money(r.monto) + ' · Aceptado ' + money(t.acept) + '</p><p class="hint">' + res + '</p><div class="btns"><button class="btn primary" data-act="cerrar"' + (t.nPend ? ' disabled' : '') + '>Cerrar revisión</button></div></section>';
+  }
+  if (role === 'finanzas' && e === 'por_reintegrar') return '<section class="act"><h3>Reintegro</h3><p class="hint">Confirma cuando el dinero sobrante esté en la cuenta de la empresa.</p><div class="btns"><button class="btn primary" data-act="reintegro">Registrar reintegro recibido por ' + money(r.saldo) + '</button></div></section>';
+  if (role === 'finanzas' && e === 'por_pagar') {
+    const t = totals(r), pay = r.origen ? r.monto : t.acept, ok = r.origen || (!t.nPend && t.acept > 0);
+    return '<section class="act"><h3>Pago del reembolso</h3><p>A pagar: <strong class="num">' + money(pay) + '</strong></p><p class="hint">' + (ok ? 'Los comprobantes ya están revisados.' : 'Acepta o rechaza todos los comprobantes para poder pagar.') + '</p><div class="btns"><button class="btn primary" data-act="pagar"' + (ok ? '' : ' disabled') + '>Registrar pago</button></div></section>';
+  }
+  if (role === 'empleado' && r.emp === 'ana' && e === 'devuelta') {
+    const last = [...r.log].reverse().find(x => x.act.startsWith('Devuelta'));
+    return '<section class="act"><h3>Corrige y vuelve a enviar</h3>' + (last ? '<div class="quote"><strong>' + esc(P[last.who].n) + ':</strong> ' + esc(last.note) + '</div>' : '') + '<div class="fgrid"><label for="nuevoMonto">Monto solicitado<input id="nuevoMonto" type="number" min="0" step="100" value="' + r.monto + '"></label><label class="full" for="justif">Qué cambiaste<textarea id="justif" rows="2"></textarea></label></div><div class="err" id="actErr" role="alert"></div><div class="btns"><button class="btn primary" data-act="reenviar">Volver a enviar</button></div></section>';
+  }
+  if (role === 'empleado' && r.emp === 'ana' && e === 'por_comprobar') {
+    const sin = r.comps.filter(c => c.kind !== 'cfdi').length;
+    return '<section class="act"><h3>Envía tu comprobación</h3><p class="hint">' + (r.comps.length ? r.comps.length + ' comprobantes capturados' + (sin ? ', ' + sin + ' sin CFDI completo (Finanzas decidirá).' : '.') : 'Agrega al menos un comprobante abajo.') + '</p><div class="btns"><button class="btn primary" data-act="enviarrev"' + (r.comps.length ? '' : ' disabled') + '>Enviar a revisión</button></div></section>';
+  }
+  if (role !== 'empleado' && r.estado === 'por_comprobar') return '<section class="act"><h3>Seguimiento</h3><p class="hint">Envía un recordatorio a ' + esc(P[r.emp].n) + ' para que compruebe el anticipo.</p><div class="btns"><button class="btn" data-act="recordatorio">Enviar recordatorio</button></div></section>';
+  return '';
+}
+function approvePanel(title, hint) {
+  return '<section class="act"><h3>' + title + '</h3><p class="hint">' + hint + '</p><label for="coment" style="margin-top:10px">Comentario <span class="opt">(obligatorio al devolver o rechazar)</span><textarea id="coment" rows="2"></textarea></label><div class="err" id="actErr" role="alert"></div><div class="btns"><button class="btn primary" data-act="aprobar">Aprobar</button><button class="btn" data-act="devolver">Devolver con comentarios</button><button class="btn danger" data-act="rechazar">Rechazar</button></div></section>';
+}
+
+function docLabel(c) {
+  const k = {cfdi:'CFDI (XML + PDF)', pdf:'Solo PDF', ticket:'Ticket o nota'}[c.kind];
+  return k + (c.uuid ? '<div class="mono muted">UUID …' + c.uuid.slice(-6) + '</div>' : '');
+}
+function compEstado(c, r) {
+  if (c.estado === 'aceptado') return chip('ok', 'Aceptado');
+  if (c.estado === 'rechazado') return chip('crit', 'Rechazado');
+  return ['en_revision', 'por_pagar'].includes(r.estado) ? chip('info', 'Por revisar') : chip('n', 'Capturado');
+}
+function compsHTML(r) {
+  if (r.origen) return '<section><h3>Comprobantes</h3><p class="hint">Este reembolso salió del excedente del anticipo ' + esc(r.origen) + ', cuyos comprobantes ya fueron revisados.</p></section>';
+  const show = r.tipo === 'reembolso' || ['por_comprobar', 'en_revision', 'por_reintegrar', 'cerrada'].includes(r.estado);
+  if (!show) return '';
+  const canEdit = S.role === 'empleado' && r.emp === 'ana' && ((r.tipo === 'anticipo' && r.estado === 'por_comprobar') || (r.tipo === 'reembolso' && ['pend_jefe', 'devuelta'].includes(r.estado)));
+  const canRev = S.role === 'finanzas' && (r.estado === 'en_revision' || r.estado === 'por_pagar');
+  const t = totals(r), dd2 = deducible(r), act = canEdit || canRev;
+  const sumHTML = '<div class="sumline"><div><span class="lbl">' + (r.tipo === 'anticipo' ? 'Anticipo' : 'Solicitado') + '</span><b>' + money(r.monto) + '</b></div><div><span class="lbl">Capturado</span><b>' + money(t.cap) + '</b></div><div><span class="lbl">Aceptado</span><b>' + money(t.acept) + '</b></div>' + (r.tipo === 'anticipo' ? '<div><span class="lbl">Saldo (anticipo − capturado)</span><b>' + money(r.monto - t.cap) + '</b></div>' : '') + '</div>';
+  const rows = r.comps.map((c, i) => '<tr><td><strong>' + esc(c.prov) + '</strong><div class="muted">' + c.concepto + ' · ' + c.pago + '</div></td><td>' + fd(c.fecha) + '</td><td>' + docLabel(c) + '</td><td class="num">' + money(c.monto) + '</td><td>' + flags(c).map(f => chip(f[0], f[1])).join('') + '</td><td>' + compEstado(c, r) + '</td>' +
+    (act ? '<td><div class="rowbtns">' + (canRev ? '<button class="btn sm" data-act="cok" data-i="' + i + '"' + (c.estado === 'aceptado' ? ' disabled' : '') + '>Aceptar</button><button class="btn sm danger" data-act="cno" data-i="' + i + '"' + (c.estado === 'rechazado' ? ' disabled' : '') + '>Rechazar</button>' : '<button class="btn sm" data-act="cdel" data-i="' + i + '">Quitar</button>') + '</div></td>' : '') + '</tr>').join('');
+  return '<section><h3>Comprobantes</h3>' + sumHTML +
+    (r.comps.length ? '<div class="tablewrap"><table><thead><tr><th>Gasto</th><th>Fecha</th><th>Documento</th><th class="num">Monto</th><th>Validación</th><th>Estado</th>' + (act ? '<th></th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' : '<p class="hint">Todavía no hay comprobantes.</p>') +
+    (r.comps.length ? '<p class="hint" style="margin-top:10px">Deducible estimado <strong class="num">' + money(dd2.ded) + '</strong> · No deducible estimado <strong class="num">' + money(dd2.no) + '</strong>. Cálculo de referencia con los topes de Parámetros; confírmalo con tu contador.</p>' : '') +
+    (canEdit ? addForm(r) : '') + '</section>';
+}
+function addForm(r) {
+  return '<details class="addc" id="addc"' + (S.addOpen ? ' open' : '') + '><summary>Agregar comprobante</summary>' +
+    '<p class="hint" style="margin-top:8px">Sube el XML y el PDF de la factura. El sistema lee el XML para obtener RFC, fecha, total y UUID, y lee el PDF para identificar qué tipo de documento es. En este prototipo la lectura es simulada: usa uno de los ejemplos para verla.</p>' +
+    '<div class="sims"><span class="muted">Probar con:</span><button class="btn sm" data-act="sim" data-v="cfdi">Factura XML + PDF</button><button class="btn sm" data-act="sim" data-v="pdf">Solo PDF</button><button class="btn sm" data-act="sim" data-v="ticket">Ticket o nota</button></div>' +
+    '<label for="cFiles">Archivos<input id="cFiles" type="file" multiple accept=".xml,.pdf,image/*"></label>' +
+    '<div class="lectura" id="lectura">Aún no hay archivos.</div>' +
+    '<div class="fgrid"><label for="cConc">Concepto<select id="cConc"><option>Hospedaje</option><option>Alimentos</option><option>Transporte</option><option>Otros</option></select></label>' +
+    '<label for="cProv">Proveedor<input id="cProv"></label><label for="cFecha">Fecha<input id="cFecha" type="date" value="' + r.salida + '"></label>' +
+    '<label for="cMonto">Total (MXN)<input id="cMonto" type="number" min="0" step="0.01"></label>' +
+    '<label for="cPago">Forma de pago<select id="cPago"><option>Tarjeta</option><option>Transferencia</option><option>Efectivo</option></select></label></div>' +
+    '<div class="err" id="cErr" role="alert"></div><div class="btns"><button class="btn primary" data-act="cadd">Agregar</button></div></details>';
+}
+function logHTML(r) {
+  return '<section><h3>Bitácora</h3><ol class="timeline">' + r.log.map(x => '<li><time>' + ft(x.at) + '</time><div><strong>' + esc(x.act) + '</strong> <span class="who">· ' + esc(P[x.who].n) + '</span>' + (x.note ? '<div class="muted">' + esc(x.note) + '</div>' : '') + '</div></li>').join('') + '</ol></section>';
+}
+
+function viewAlertas() {
+  const al = alertsFor(S.role);
+  if (!al.length) return '<div class="panel empty">No hay alertas pendientes.</div>';
+  return '<p class="hint" style="margin-bottom:10px">Las alertas son avisos. No bloquean anticipos ni solicitudes.</p><div class="list">' + al.map(a => '<div class="arow ' + a.sev + '"><div><p><strong>' + esc(a.txt) + '</strong></p><p class="muted"><span class="folio">' + a.r.id + '</span> · ' + esc(a.r.destino) + ' · ' + esc(P[a.r.emp].n) + ' · ' + money(a.r.monto) + '</p></div><div class="rowbtns"><button class="btn sm" data-act="ver" data-id="' + a.r.id + '">Ver expediente</button>' + (S.role !== 'empleado' && a.kind === 'plazo' ? '<button class="btn sm" data-act="recordatorio" data-id="' + a.r.id + '">Enviar recordatorio</button>' : '') + '</div></div>').join('') + '</div>';
+}
+
+function viewNueva() {
+  const T = sod(new Date());
+  return '<section class="panel" id="nform" style="max-width:820px"><h2 style="font-size:20px">Nueva solicitud</h2><p class="hint" style="margin-top:4px">Los datos ya vienen de ejemplo; cámbialos antes de enviar.</p>' +
+    '<fieldset style="margin-top:14px"><legend>Tipo</legend><label class="radio"><input type="radio" name="ntipo" value="anticipo" checked> Anticipo de viáticos <small>dinero antes del viaje</small></label><label class="radio"><input type="radio" name="ntipo" value="reembolso"> Reembolso <small>gastos que ya pagaste tú; adjuntas comprobantes después de enviar</small></label></fieldset>' +
+    '<div class="fgrid"><label for="nDestino">Destino<input id="nDestino" value="Guadalajara, Jal."></label>' +
+    '<label for="nAmb">Ámbito<select id="nAmb"><option value="nacional">Nacional</option><option value="extranjero">Extranjero</option></select></label>' +
+    '<label for="nSal">Salida<input id="nSal" type="date" value="' + iso(addBD(T, 8)) + '"></label><label for="nReg">Regreso<input id="nReg" type="date" value="' + iso(addBD(T, 10)) + '"></label>' +
+    '<label class="full" for="nMotivo">Motivo<textarea id="nMotivo" rows="2">Visita a cliente y reunión comercial</textarea></label>' +
+    '<label for="nH">Hospedaje<input id="nH" type="number" min="0" step="100" value="5000"></label><label for="nA">Alimentos<input id="nA" type="number" min="0" step="100" value="2500"></label>' +
+    '<label for="nT">Transporte<input id="nT" type="number" min="0" step="100" value="3500"></label><label for="nO">Otros<input id="nO" type="number" min="0" step="100" value="500"></label></div>' +
+    '<p>Total: <strong class="num" id="nTotal"></strong></p><div class="route" id="nRuta"></div><div class="err" id="nErr" role="alert"></div>' +
+    '<div class="btns"><button class="btn primary" data-act="crear">Enviar a mi jefe directo</button></div></section>';
+}
+function updateNew() {
+  const v = id => Math.max(0, Number($('#' + id)?.value) || 0), tot = v('nH') + v('nA') + v('nT') + v('nO');
+  $('#nTotal').textContent = money(tot);
+  $('#nRuta').textContent = 'Ruta: jefe directo' + (tot > S.params.umbral ? ', luego Finanzas, porque ' + money(tot) + ' supera ' + money(S.params.umbral) + '.' : '. No requiere Finanzas (umbral ' + money(S.params.umbral) + ').');
+}
+
+function viewParams() {
+  const p = S.params;
+  const num = (k, l, h) => '<label for="p_' + k + '">' + l + '<input id="p_' + k + '" type="number" min="0" step="1" value="' + p[k] + '" data-param="' + k + '">' + (h ? '<span class="opt">' + h + '</span>' : '') + '</label>';
+  return '<div class="params" style="max-width:860px">' +
+    '<section class="panel"><h3>Autorización por monto</h3><div class="pgrid">' + num('umbral', 'Umbral para Finanzas (MXN)', 'Arriba de este monto se suma Finanzas.') + '</div>' +
+    '<p class="hint" style="margin-top:12px">Hasta ' + money(p.umbral) + ': jefe directo. Más de ' + money(p.umbral) + ': jefe directo y Finanzas. El cambio aplica a las solicitudes que aún no pasan por el jefe.</p></section>' +
+    '<section class="panel"><h3>Plazo de comprobación</h3><div class="pgrid">' + num('plazoDias', 'Días hábiles después del regreso', '= ' + (p.plazoDias * 24) + ' horas hábiles.') + '</div>' +
+    '<p class="lbl" style="margin-top:14px">Días inhábiles (además de sábados y domingos)</p><div class="inhab">' + p.inhabiles.slice().sort().map(x => '<span class="chip c-n">' + fd(x) + ' ' + x.slice(0, 4) + '<button aria-label="Quitar ' + x + '" data-act="inhdel" data-v="' + x + '">×</button></span>').join('') + '</div>' +
+    '<div class="fgrid" style="grid-template-columns:minmax(0,220px) auto;align-items:end"><label for="inhNew">Agregar fecha<input id="inhNew" type="date"></label><div><button class="btn" data-act="inhadd">Agregar</button></div></div></section>' +
+    '<section class="panel"><h3>Referencias fiscales</h3><p class="hint" style="margin-bottom:12px">Valores de referencia para las validaciones. Confirma con tu contador cuáles están vigentes antes de usarlos.</p><div class="pgrid">' +
+    num('topeNac', 'Tope diario sin CFDI, nacional (MXN)') + num('topeExt', 'Tope diario sin CFDI, extranjero (MXN)') + num('efectivoMax', 'Pago en efectivo máximo con CFDI (MXN)') + '</div></section></div>';
+}
+
+function render() {
+  const fl = FILTERS[S.role];
+  if (!fl.find(f => f.k === S.filter)) S.filter = fl[0].k;
+  if (!TABS[S.role].find(t => t.k === S.view)) S.view = 'bandeja';
+  const body = S.view === 'bandeja' ? viewBandeja() : S.view === 'nueva' ? viewNueva() : S.view === 'alertas' ? viewAlertas() : viewParams();
+  $('#app').innerHTML = head() + body;
+  if (S.view === 'nueva') updateNew();
+}
+
+/* ---------- lectura simulada de documentos ---------- */
+const SAMPLES = {
+  cfdi:{names:['A-4821.xml', 'A-4821.pdf'], prov:'Hotel Torre Norte SA de CV', monto:3480, conc:'Hospedaje'},
+  pdf:{names:['factura_cena.pdf'], prov:'Restaurante El Fogón', monto:1260, conc:'Alimentos'},
+  ticket:{names:['ticket_taxi.jpg'], prov:'Taxi aeropuerto', monto:420, conc:'Transporte'}
+};
+let pending = null;
+function applySample(kind, names) {
+  const s = SAMPLES[kind]; pending = {kind, names, uuid:kind === 'cfdi' ? fakeUuid(String(Math.random())) : ''};
+  $('#cProv').value = s.prov; $('#cMonto').value = s.monto; $('#cConc').value = s.conc;
+  const msg = {
+    cfdi:'<strong>CFDI detectado</strong> (XML + PDF). Proveedor, fecha, total y UUID leídos del XML. UUID …' + pending.uuid.slice(-6) + '. El estatus ante el SAT se consulta al agregar.',
+    pdf:'<strong>Factura en PDF sin XML.</strong> Se leyeron proveedor y total, pero sin el XML no hay CFDI que se pueda deducir. Pide el XML al proveedor.',
+    ticket:'<strong>Ticket o nota sin CFDI.</strong> Se registra como posible no deducible y Finanzas decide.'
+  }[kind];
+  $('#lectura').innerHTML = '<span class="muted">Lectura simulada · ' + esc(names.join(', ')) + '</span><br>' + msg + '<br><span class="muted">Revisa los datos sugeridos antes de agregar.</span>';
+}
+
+/* ---------- acciones ---------- */
+function decide(kind) {
+  const r = cur(), note = ($('#coment')?.value || '').trim(), err = $('#actErr'), role = S.role;
+  if (kind !== 'aprobar' && !note) { err.textContent = 'Escribe un comentario para que la persona sepa el motivo.'; $('#coment').focus(); return; }
+  if (kind === 'aprobar') {
+    if (role === 'jefe') {
+      r.viaFin = r.monto > S.params.umbral;
+      r.estado = r.viaFin ? 'pend_fin' : (r.tipo === 'anticipo' ? 'aprobada' : 'por_pagar');
+      addLog(r, 'Aprobada por jefe directo', r.viaFin ? 'Pasa a Finanzas porque ' + money(r.monto) + ' supera ' + money(S.params.umbral) + '. ' + note : note);
+      toast(r.viaFin ? 'Aprobada. Pasa a Finanzas por el monto.' : 'Aprobada. No requiere Finanzas.');
+    } else {
+      r.estado = r.tipo === 'anticipo' ? 'aprobada' : 'por_pagar';
+      addLog(r, 'Aprobada por Finanzas', note); toast('Aprobada por Finanzas.');
+    }
+  } else if (kind === 'devolver') {
+    r.estado = 'devuelta'; r.devolvio = role; addLog(r, 'Devuelta con comentarios', note); toast('Devuelta al empleado.');
+  } else {
+    r.estado = 'rechazada'; r.stopAt = role === 'jefe' ? 'Jefe directo' : 'Finanzas'; addLog(r, 'Rechazada', note); toast('Solicitud rechazada.');
+  }
+  render();
+}
+const ACT = {
+  role(b) { S.role = b.dataset.v; S.view = 'bandeja'; S.filter = FILTERS[S.role][0].k; S.sel = null; S.addOpen = false; render(); },
+  view(b) { S.view = b.dataset.v; render(); },
+  filter(b) { S.filter = b.dataset.v; S.sel = null; render(); },
+  sel(b) { S.sel = b.dataset.id; S.addOpen = false; pending = null; render(); if (!wide()) scrollTo({top:0}); },
+  ver(b) { S.view = 'bandeja'; S.filter = FILTERS[S.role].find(f => f.k === 'todas')?.k || FILTERS[S.role][0].k; S.sel = b.dataset.id; render(); if (!wide()) scrollTo({top:0}); },
+  back() { S.sel = null; render(); },
+  reset() { init(); render(); toast('Datos de ejemplo restablecidos.'); },
+  aprobar() { decide('aprobar'); }, devolver() { decide('devolver'); }, rechazar() { decide('rechazar'); },
+  entregar() {
+    const r = cur(), ref = $('#ref').value.trim();
+    if (!ref) { $('#actErr').textContent = 'Anota la referencia o folio de la entrega.'; $('#ref').focus(); return; }
+    r.entrega = {metodo:$('#metodo').value, ref, fecha:iso(new Date())}; r.estado = 'por_comprobar';
+    addLog(r, 'Anticipo entregado', r.entrega.metodo + ' ' + ref + '. Plazo de comprobación: ' + fd(iso(addBD(dd(r.regreso), S.params.plazoDias))) + '.'); toast('Anticipo registrado como entregado.'); render();
+  },
+  enviarrev() {
+    const r = cur(), dl = iso(addBD(dd(r.regreso), S.params.plazoDias)), hoy = iso(new Date());
+    r.estado = 'en_revision'; r.comprobadoEn = hoy;
+    addLog(r, 'Comprobación enviada a revisión', r.comps.length + ' comprobantes, ' + (hoy <= dl ? 'en plazo.' : 'fuera de plazo (límite ' + fd(dl) + ').')); toast('Enviado a revisión de Finanzas.'); render();
+  },
+  cok(b) { const r = cur(), c = r.comps[b.dataset.i]; c.estado = 'aceptado'; addLog(r, 'Comprobante aceptado', c.prov + ' ' + money(c.monto)); render(); },
+  cno(b) { const r = cur(), c = r.comps[b.dataset.i]; c.estado = 'rechazado'; addLog(r, 'Comprobante rechazado', c.prov + ' ' + money(c.monto)); render(); },
+  cdel(b) { const r = cur(); r.comps.splice(b.dataset.i, 1); S.addOpen = true; render(); },
+  cerrar() {
+    const r = cur(), t = totals(r), saldo = r.monto - t.acept;
+    if (t.nPend) return;
+    if (saldo > 0) { r.estado = 'por_reintegrar'; r.saldo = saldo; addLog(r, 'Revisión concluida', 'Aceptado ' + money(t.acept) + '. La persona debe reintegrar ' + money(saldo) + '.'); toast('Revisión cerrada. Queda el reintegro pendiente.'); }
+    else if (saldo < 0) {
+      const ex = -saldo, id = 'RB-' + pad4(nextRB++);
+      r.estado = 'cerrada'; r.resultado = 'Excedente de ' + money(ex) + ' enviado como reembolso ' + id;
+      addLog(r, 'Revisión concluida', 'Aceptado ' + money(t.acept) + '. Excedente de ' + money(ex) + ' pasa al módulo de reembolsos como ' + id + '.');
+      S.reqs.push({id, ord:ord++, tipo:'reembolso', emp:r.emp, destino:r.destino, motivo:'Excedente del anticipo ' + r.id + ' sobre lo autorizado', ambito:r.ambito, salida:r.salida, regreso:r.regreso, desglose:{hospedaje:0, alimentos:0, transporte:0, otros:0}, monto:ex, estado:'pend_jefe', origen:r.id, comps:[], log:[{at:new Date().toISOString(), who:'carla', act:'Reembolso generado', note:'Excedente del anticipo ' + r.id + '. Requiere autorización del jefe directo.'}]});
+      toast('Cerrada. Se generó el reembolso ' + id + '.');
+    } else { r.estado = 'cerrada'; r.resultado = 'Comprobado en su totalidad'; addLog(r, 'Revisión concluida', 'Comprobado en su totalidad.'); toast('Anticipo cerrado.'); }
+    render();
+  },
+  reintegro() { const r = cur(); r.estado = 'cerrada'; r.resultado = 'Reintegro de ' + money(r.saldo) + ' recibido'; addLog(r, 'Reintegro recibido', money(r.saldo)); toast('Reintegro registrado. Anticipo cerrado.'); render(); },
+  pagar() { const r = cur(), t = totals(r), pay = r.origen ? r.monto : t.acept; r.estado = 'pagada'; r.resultado = 'Pagado ' + money(pay) + ' el ' + fd(iso(new Date())); addLog(r, 'Reembolso pagado', money(pay)); toast('Pago registrado.'); render(); },
+  reenviar() {
+    const r = cur(), m = Number($('#nuevoMonto').value) || 0, j = $('#justif').value.trim();
+    if (m <= 0 || !j) { $('#actErr').textContent = 'Indica el monto y qué cambiaste.'; return; }
+    r.monto = m; r.viaFin = undefined; r.estado = r.devolvio === 'finanzas' ? 'pend_fin' : 'pend_jefe';
+    addLog(r, 'Corregida y reenviada', 'Monto ' + money(m) + '. ' + j); toast('Reenviada para autorización.'); render();
+  },
+  recordatorio(b) {
+    const r = S.reqs.find(x => x.id === (b.dataset.id || S.sel));
+    addLog(r, 'Recordatorio enviado', 'Plazo de comprobación: ' + plazo(r).txt.toLowerCase() + '.');
+    toast('Recordatorio anotado en la bitácora. En el prototipo no se envía correo.'); render();
+  },
+  sim(b) { applySample(b.dataset.v, SAMPLES[b.dataset.v].names); },
+  cadd() {
+    const r = cur(), err = $('#cErr'), monto = Number($('#cMonto').value) || 0, prov = $('#cProv').value.trim(), fecha = $('#cFecha').value;
+    if (!pending) { err.textContent = 'Agrega los archivos del comprobante o elige un ejemplo.'; return; }
+    if (!prov || monto <= 0 || !fecha) { err.textContent = 'Completa proveedor, fecha y total.'; return; }
+    r.comps.push({id:'n' + Date.now(), concepto:$('#cConc').value, prov, fecha, monto, kind:pending.kind, pago:$('#cPago').value, estado:'pendiente', rfcOk:true, sat:'vigente', uuid:pending.uuid});
+    pending = null; S.addOpen = true; toast('Comprobante agregado.'); render();
+  },
+  crear() {
+    const tipo = document.querySelector('input[name=ntipo]:checked').value, v = id => $('#' + id).value.trim(), n = id => Math.max(0, Number($('#' + id).value) || 0);
+    const des = {hospedaje:n('nH'), alimentos:n('nA'), transporte:n('nT'), otros:n('nO')}, monto = sum(Object.values(des), x => x), sal = $('#nSal').value, reg = $('#nReg').value, err = $('#nErr');
+    if (!v('nDestino') || !v('nMotivo')) { err.textContent = 'Escribe el destino y el motivo.'; return; }
+    if (!sal || !reg || reg < sal) { err.textContent = 'Revisa las fechas: el regreso no puede ser antes de la salida.'; return; }
+    if (monto <= 0) { err.textContent = 'Captura al menos un concepto con monto.'; return; }
+    const id = tipo === 'anticipo' ? 'VT-' + pad4(nextVT++) : 'RB-' + pad4(nextRB++);
+    S.reqs.push({id, ord:ord++, tipo, emp:'ana', destino:v('nDestino'), motivo:v('nMotivo'), ambito:$('#nAmb').value, salida:sal, regreso:reg, desglose:des, monto, estado:'pend_jefe', comps:[], log:[{at:new Date().toISOString(), who:'ana', act:'Solicitud creada', note:'Enviada al jefe directo.'}]});
+    S.view = 'bandeja'; S.filter = 'todas'; S.sel = id; toast('Solicitud ' + id + ' enviada a tu jefe directo.'); render();
+  },
+  inhadd() { const x = $('#inhNew').value; if (x && !S.params.inhabiles.includes(x)) { S.params.inhabiles.push(x); toast('Día inhábil agregado.'); render(); } },
+  inhdel(b) { S.params.inhabiles = S.params.inhabiles.filter(x => x !== b.dataset.v); render(); }
+};
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (b && !b.disabled && ACT[b.dataset.act]) ACT[b.dataset.act](b);
+});
+document.addEventListener('input', e => { if (e.target.closest('#nform')) updateNew(); });
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'cFiles') {
+    const names = [...t.files].map(f => f.name), low = names.map(x => x.toLowerCase());
+    if (names.length) applySample(low.some(x => x.endsWith('.xml')) ? 'cfdi' : low.some(x => x.endsWith('.pdf')) ? 'pdf' : 'ticket', names);
+  } else if (t.dataset.param) {
+    const val = Math.max(0, Number(t.value) || 0); S.params[t.dataset.param] = t.dataset.param === 'plazoDias' ? Math.max(1, Math.round(val)) : val;
+    toast('Parámetro actualizado.'); render();
+  }
+});
+document.addEventListener('toggle', e => { if (e.target.id === 'addc') S.addOpen = e.target.open; }, true);
+matchMedia('(min-width:900px)').addEventListener('change', render);
+init(); render();
+</script>
